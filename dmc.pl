@@ -18,7 +18,7 @@ close $test;
 
 sub train{
     my %item;
-    my $current_class;
+    my $current_class = "";
     my $value;
     my @acumulator;
     my $counter = 0;
@@ -26,27 +26,25 @@ sub train{
     #read data set. Note: the data set must be ordered.
     while (<$info>) {
         my ($attribute_array, $class_name) = split(/,I/);
-	$class_name = "I".$class_name;
-	my @attributes = split(/,/, $attribute_array);
-	if ( defined($current_class) && $current_class eq $class_name ){
-	    
-	}
-	else{
-	    for(@acumulator){ $_ /= $counter;}
-	    $value = join ',', @acumulator[0..$#acumulator];
-	    if( @acumulator ){ $centroid_classes{$current_class} = $value; }
- 	    @acumulator = ();
-	    $counter = 0;
-	    $current_class = $class_name;
-	}
-	$counter++;
-	for my $i(0..$#attributes){ $acumulator[$i] += $attributes[$i];}
+	    $class_name = "I".$class_name;
+	    my @attributes = split(/,/, $attribute_array);
+
+	    if ( $current_class ne $class_name ){
+	        for(@acumulator){ $_ /= $counter; }
+	            $value = join ',', @acumulator[0..$#acumulator];
+	        if( @acumulator ){ $centroid_classes{$current_class} = $value; }
+ 	        @acumulator = ();
+	        $counter = 0;
+	        $current_class = $class_name;
+		}
+	    $counter++;
+	    for my $i(0..$#attributes){ $acumulator[$i] += $attributes[$i];}
     }
     close $info;
-    $centroid_classes{$current_class} = $value;
-    for(keys %centroid_classes){print "key:$_: $centroid_classes{$_}\n";}
-   
-
+	for(@acumulator){ $_ /= $counter; }
+	$value = join ',', @acumulator[0..$#acumulator];
+	$centroid_classes{$current_class} = $value;
+	for(keys %centroid_classes){print "key:$_: $centroid_classes{$_}\n";}
 }
 
 train();
