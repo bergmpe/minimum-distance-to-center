@@ -8,6 +8,41 @@ my $test_set = 'iris.test';
 my %test_classes;
 my %centroid_classes;
 
+sub train{
+
+    my $current_class = "";
+    my $value;
+    my @acumulator;
+    my $counter = 0;
+    open my $info, $data_set or die  "Could not open the file $data_set";
+    #read data set. Note: the data set must be ordered.
+    while (<$info>) {
+        my ($attributes_string, $class_name) = split(/,I/);
+	    $class_name = "I".$class_name;
+	    my @attributes = split(/,/, $attributes_string);
+
+	    if ( $current_class ne $class_name ){
+	        for(@acumulator){ $_ /= $counter; }
+	        $value = join ',', @acumulator[0..$#acumulator];
+	        if( @acumulator ){
+		    $centroid_classes{$current_class} = $value;
+		    $centroid_classes{$current_class."counter"} = $counter;
+		}
+ 	        @acumulator = ();
+	        $counter = 0;
+	        $current_class = $class_name;
+	    }
+	    $counter++;
+	    for my $i(0..$#attributes){ $acumulator[$i] += $attributes[$i];}
+    }
+    close $info;
+    for(@acumulator){ $_ /= $counter; }
+    $value = join ',', @acumulator[0..$#acumulator];
+    $centroid_classes{$current_class} = $value;
+    $centroid_classes{$current_class."counter"} = $counter;
+}
+
+train();
 open my $test, $test_set or die  "Could not open the file $test_set";
 #read test set.
 while (<$test>) {
@@ -16,66 +51,34 @@ while (<$test>) {
 }
 close $test;
 
-sub train{
-    my %item;
-    my $current_class = "";
-    my $value;
-    my @acumulator;
-    my $counter = 0;
-    open my $info, $data_set or die  "Could not open the file $data_set";
-    #read data set. Note: the data set must be ordered.
-    while (<$info>) {
-        my ($attribute_array, $class_name) = split(/,I/);
-	    $class_name = "I".$class_name;
-	    my @attributes = split(/,/, $attribute_array);
+#subimit the test set to classifier.
+for(keys %test_classes){
+	update_centroid($test_classes{$_}, $_) if ( $test_classes{$_} eq classify_dmc($_) );
+	print "test class: $test_classes{$_}, classify: ", classify_dmc($_), "\n";
+}
 
-	    if ( $current_class ne $class_name ){
-	        for(@acumulator){ $_ /= $counter; }
-	            $value = join ',', @acumulator[0..$#acumulator];
-	        if( @acumulator ){ $centroid_classes{$current_class} = $value; }
- 	        @acumulator = ();
-	        $counter = 0;
-	        $current_class = $class_name;
-		}
-	    $counter++;
-	    for my $i(0..$#attributes){ $acumulator[$i] += $attributes[$i];}
+sub update_centroid{
+    my $classe_name = shift;
+    my @new_attributes = split(/,/, shift);
+    my @old_attributes = split(/,/, $centroid_classes{$classe_name});
+    my $n = $centroid_classes{$classe_name."counter"};
+    my $learning_factor = 1 /($n + 1);
+    foreach my $i(0..$#old_attributes){ 
+        $old_attributes[$i] = (1 - $learning_factor) * $old_attributes[$i] + $learning_factor * $new_attributes[$i];
     }
-    close $info;
-	for(@acumulator){ $_ /= $counter; }
-	$value = join ',', @acumulator[0..$#acumulator];
-	$centroid_classes{$current_class} = $value;
-	for(keys %centroid_classes){print "key:$_: $centroid_classes{$_}\n";}
 }
 
-train();
-
-sub average{
-	foreach(@_){
-		my @attributes0 = split(/,/, $_);
-		#print @attributes0;
+sub classify_dmc{
+	my ($min_distance, $min_distance_key) = 100;
+	for my $key (keys %centroid_classes){
+	    my $current_distance = distance($centroid_classes{$key}, @_);
+	    if ($current_distance <= $min_distance){
+		$min_distance_key = $key;
+		$min_distance = $current_distance;
+	    }
 	}
+	return $min_distance_key;
 }
-
-#while(1){
-	#print "Enter the attributes separated by , : ";
-	#chomp (my $attributes = <STDIN>);
-	#print classify_knn($attributes);
-	#average(@centroid_classes);
-#}
- 
-#sub classify_knn{
-#	my @neighbors;
-#	my ($min_distance, $min_distance_key) = 100, 0;
-#	for my $key (keys %classes){
-#		my $current_distance = distance($key, $_[0]);
-#		if ($current_distance <= $min_distance){
-#			shift @neighbors if @neighbors == K;
-#			push @neighbors, $classes{$key};
-#			$min_distance = $current_distance;
-#		}
-#	}
-#	return mode(@neighbors);
-#}
 
 sub distance{
 	my $result = 0;
@@ -85,14 +88,4 @@ sub distance{
 		$result += abs $attributes0[$i] - $attributes1[$i];
 	}
 	return $result;
-}
-
-sub mode{
-	my %classes_count;
-	my ($max, $max_key) = (0, "none");
-	foreach(@_){ $classes_count{$_} = $classes_count{$_} ? $classes_count{$_} + 1: 1;}
-	while ( my($key, $value) = each %classes_count ){
-		 $max_key = $key, $max = $value if $value > $max;
-	}
-	return $max_key;
 }
